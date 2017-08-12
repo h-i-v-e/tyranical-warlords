@@ -4,6 +4,7 @@ using UnityEngine;
 
 public class ProceduralTerrain : MonoBehaviour {
 
+	[Range(4, 255)]
 	public int size;
 	[Range(1, 5)]
 	public int octaves;
@@ -11,8 +12,12 @@ public class ProceduralTerrain : MonoBehaviour {
 	public float height;
 	[Range(0, 1)]
 	public float coherence;
+	public float textureSize;
 
 	public int seed;
+
+	[Range(0, 5)]
+	public int smoothings;
 
 	private void InitializeValues(){
 		Random.InitState (seed);
@@ -36,35 +41,89 @@ public class ProceduralTerrain : MonoBehaviour {
 		return triangles;
 	}
 
-	private Vector3[] GenerateVertices(Vector2[] uv){
+	private static float GetOverflow(float val){
+		int floor = (int)val;
+		float o = val - floor;
+		return val < 0 ? 1f + o : o;
+	}
+
+	private Vector2[] GenerateUV (Vector3[] vertices){
+		//float sizeMul = 1f / textureSize;
+		Vector2[] uv = new Vector2[size * size];
+		for (int y = 0, offset = 0; y != size; ++y) {
+			for (int x = 0; x != size; ++x, ++offset) {
+				//Vector3 vertex = vertices [offset];
+				uv [offset] = new Vector2 ((float)(x & 1), (float)(y & 1));
+			}
+		}
+		return uv;
+	}
+
+	private void PrintVertices(Vector3[] vertices){
+		for (int y = 0, offset = 0; y != size; ++y) {
+			string line = "";
+			for (int x = 0; x != size; ++x, ++offset) {
+				line += ", " + vertices [offset];
+			}
+			Debug.Log (line);
+		}
+	}
+
+	private Vector3[] GenerateVertices(){
+		float step = 1f / (size - 1f), yOffset = -0.5f;
 		int numVertices = size * size;
 		Vector3[] vertices = new Vector3[numVertices];
-		for (int y = 0, offset = 0; y != size; ++y, offset += size) {
-			for (int x = 0; x != size; ++x) {
-				vertices [offset + x] = new Vector3 (x, 0f, y);
-				uv [offset + x] = new Vector2 ((float)(x & 1), (float)(y & 1));
+		for (int y = 0, offset = 0; y != size; ++y, yOffset += step) {
+			float xOffset = -0.5f;
+			for (int x = 0; x != size; ++x, ++offset, xOffset += step) {
+				vertices [offset] = new Vector3 (xOffset, 0f, yOffset);
 			}
 		}
 		NoiseLayer noise = new NoiseLayer (coherence);
 		for (int i = 0; i != octaves; ++i){
 			noise.coherence *= i + 1;
 			noise.Apply(vertices, size, height / ((i + 1) * (i + 1)));
+			for (int j = 0; j != smoothings; ++j) {
+				int nextSize = noise.computeSmoothedSize (size);
+				if (nextSize > 255){
+					break;
+				}
+				vertices = noise.Smooth (vertices, size);
+				size = nextSize;
+			}
 		}
+		//PrintVertices (vertices);
 		return vertices;
 	}
 
 	private static Vector3 NormalFromVertices (Vector3 a, Vector3 b, Vector3 c){
-		return Vector3.Normalize(Vector3.Cross (b - a, c - a));
+		return Vector3.Normalize(Vector3.Cross (a - b, a - c)) * -1f;
 	}
+
+	private static Vector3 NormalFromVertices (Vector3 a, Vector3 b, Vector3 c, Vector3 d){
+		return Vector3.Normalize(Vector3.Cross (a - b, c - d)) * -1f;
+	}
+
+	/*private static Vector3 CalculateNormals(Vector3[] vertices, int size, int x, int y){
+		int baseY = y * size;
+		Vector3 a = NormalFromVertices (vertices[baseY + x - 1]);
+		return Vector3.Normalize ();
+	}*/
 
 	private Vector3[] GenerateNormals(Vector3[] vertices){
 		Vector3[] normals = new Vector3[size * size];
 		int lastIndex = size - 1, b;
-		for (int y = 0, offset = 0; y != lastIndex; ++y, offset += size) {
-			for (int x = 0; x != lastIndex; ++x) {
+		for (int x = 0; x != lastIndex; ++x) {
+			b = lastIndex * size + x;
+			normals [x] = NormalFromVertices (vertices[x], vertices[x + 1], vertices[x + size]);
+		}
+		normals [lastIndex] = normals [lastIndex - 1];
+		for (int y = 1, offset = size; y != lastIndex; ++y, offset += size) {
+			for (int x = 1; x != lastIndex; ++x) {
 				b = offset + x;
-				normals [b] = NormalFromVertices (vertices[b], vertices[b + 1], vertices[b + size]);
+				normals [b] = NormalFromVertices (vertices[b - 1], vertices[b + 1], vertices[b - size], vertices[b + size]);
 			}
+			normals[offset] = NormalFromVertices (vertices[offset], vertices[offset + 1], vertices[offset + size]);
 			b = offset + lastIndex;
 			normals [b] = normals [b - 1];
 		}
@@ -75,14 +134,20 @@ public class ProceduralTerrain : MonoBehaviour {
 		return normals;
 	}
 
+	private void AssignVertices(Mesh mesh, Vector3[] vertices){
+		mesh.Clear ();
+		mesh.vertices = vertices;
+		mesh.uv = GenerateUV (vertices);
+		mesh.triangles = GenerateTriangles ();
+		mesh.normals = GenerateNormals (vertices);
+		//mesh.RecalculateNormals();
+		mesh.RecalculateBounds ();
+	}
+
 	private void GenerateMesh(Mesh mesh){
 		InitializeValues ();
-		mesh.Clear ();
-		Vector2[] uv = new Vector2[size * size];
-		mesh.vertices = GenerateVertices (uv);
-		mesh.uv = uv;
-		mesh.triangles = GenerateTriangles ();
-		mesh.normals = GenerateNormals (mesh.vertices);
+
+		AssignVertices(mesh, GenerateVertices ());
 	}
 
 	public void GenerateSharedMesh(){
