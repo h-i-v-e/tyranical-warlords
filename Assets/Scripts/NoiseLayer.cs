@@ -14,12 +14,19 @@ public struct NoiseLayer
 		return (b + (a - b) * 0.25f) + scaleShift;
 	}
 
-	public int computeSmoothedSize(int size){
+	public static int ComputeSmoothedSize(int size){
 		return (size << 1) - 2;
 	}
 
+	public static int ComputeStartSize(int endSize, int smoothings){
+		for (int i = 0; i != smoothings; ++i){
+			endSize = (endSize + 2) >> 1;
+		}
+		return endSize < 4 ? 4 : endSize;
+	}
+
 	public Vector3[] Smooth(Vector3[] input, int size){
-		int newSize = computeSmoothedSize(size);
+		int newSize = ComputeSmoothedSize(size);
 		float scaleShiftStep = (1f - newSize / ((size - 1) * 2f)) / (newSize - 1);
 		Vector3 scaleShift = new Vector3 (scaleShiftStep, 0f, 0f);
 		Vector3[] output = new Vector3[newSize * newSize];
@@ -33,17 +40,13 @@ public struct NoiseLayer
 		scaleShift.z = scaleShiftStep;
 		for (int y = 1; y != last; ++y, scaleShift.z += scaleShiftStep){
 			int lastRow = y * size;
-			Vector3 begin = input [lastRow];
-			float zShift = (begin.z - input [lastRow - size].z) * 0.25f;
 			scaleShift.x = 0f;
-			/*output [++offset] = new Vector3 (begin.x, begin.y, begin.z - zShift) + scaleShift;
-			output [offset + newSize] = new Vector3 (begin.x, begin.y, begin.z + zShift) + scaleShift;*/
 			int b = lastRow - size;
-			Vector3 lastA = input [b];//Diff(input [b + 1], input [b], scaleShift);
+			Vector3 lastA = input [b];
 			b += size;
-			Vector3 currentA = input [b];//Diff(input [b + 1], input [b], scaleShift);
+			Vector3 currentA = input [b];
 			b += size;
-			Vector3 nextA = input [b];//Diff(input [b + 1], input [b], scaleShift);
+			Vector3 nextA = input [b];
 			output[++offset] = Diff(lastA, currentA, scaleShift);
 			output [offset + newSize] = Diff(nextA, currentA, scaleShift);
 			scaleShift.x = scaleShiftStep;
@@ -65,16 +68,12 @@ public struct NoiseLayer
 				output [offset + 1] = Diff(lastB, currentB, scaleShift);
 				output [nextOffset + 1] = Diff(nextB, currentB, scaleShift);
 			}
-			/*Vector3 end = input [lastRow + size + last];
-			output [offset] = new Vector3 (end.x, end.y, end.z - zShift) + scaleShift;
-			offset += newSize;
-			output [offset] = new Vector3 (end.x, end.y, end.z + zShift) + scaleShift;*/
 			b = lastRow + last;
-			lastA = input [b];//Diff(input [b - 1], input [b], scaleShift);
+			lastA = input [b];
 			b += size;
-			currentA = input [b];//Diff(input [b - 1], input [b], scaleShift);
+			currentA = input [b];
 			b += size;
-			nextA = input [b];//Diff(input [b - 1], input [b], scaleShift);
+			nextA = input [b];
 			output[offset] = Diff(lastA, currentA, scaleShift);
 			offset += newSize;
 			output [offset] = Diff(nextA, currentA, scaleShift);
@@ -93,8 +92,8 @@ public struct NoiseLayer
 	}
 
 	public void Apply(Vector3[] vertices, int size, float height){
-		float offsetX = UnityEngine.Random.value * 1000000f;
-		float offsetY = UnityEngine.Random.value * 1000000f;
+		float offsetX = UnityEngine.Random.value * 4000000f;
+		float offsetY = UnityEngine.Random.value * 4000000f;
 		float zScale = 1f / size;
 		for (int y = 0, offset = 0; y != size; ++y, offset += size) {
 			for (int x = 0; x != size; ++x) {

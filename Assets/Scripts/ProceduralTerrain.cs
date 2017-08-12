@@ -4,6 +4,8 @@ using UnityEngine;
 
 public class ProceduralTerrain : MonoBehaviour {
 
+	public Weathering weathering;
+
 	[Range(4, 255)]
 	public int size;
 	[Range(1, 5)]
@@ -80,6 +82,7 @@ public class ProceduralTerrain : MonoBehaviour {
 	}
 
 	private Vector3[] GenerateVertices(){
+		size = NoiseLayer.ComputeStartSize (size, smoothings);
 		float step = 1f / (size - 1f), yOffset = -0.5f;
 		int numVertices = size * size;
 		Vector3[] vertices = new Vector3[numVertices];
@@ -94,7 +97,7 @@ public class ProceduralTerrain : MonoBehaviour {
 			noise.coherence *= i + 1;
 			noise.Apply(vertices, size, height / ((i + 1) * (i + 1)));
 			for (int j = 0; j != smoothings; ++j) {
-				int nextSize = noise.computeSmoothedSize (size);
+				int nextSize = NoiseLayer.ComputeSmoothedSize (size);
 				if (nextSize > 255){
 					break;
 				}
@@ -102,6 +105,7 @@ public class ProceduralTerrain : MonoBehaviour {
 				size = nextSize;
 			}
 		}
+		weathering.Weather (vertices, size);
 		//PrintVertices (vertices);
 		ClampToOrigin(vertices);
 		return vertices;
