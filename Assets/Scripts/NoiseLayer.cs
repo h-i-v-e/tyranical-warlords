@@ -36,20 +36,28 @@ public struct NoiseLayer
 			Vector3 begin = input [lastRow];
 			float zShift = (begin.z - input [lastRow - size].z) * 0.25f;
 			scaleShift.x = 0f;
-			output [++offset] = new Vector3 (begin.x, begin.y, begin.z - zShift) + scaleShift;
-			output [offset + newSize] = new Vector3 (begin.x, begin.y, begin.z + zShift) + scaleShift;
+			/*output [++offset] = new Vector3 (begin.x, begin.y, begin.z - zShift) + scaleShift;
+			output [offset + newSize] = new Vector3 (begin.x, begin.y, begin.z + zShift) + scaleShift;*/
+			int b = lastRow - size;
+			Vector3 lastA = input [b];//Diff(input [b + 1], input [b], scaleShift);
+			b += size;
+			Vector3 currentA = input [b];//Diff(input [b + 1], input [b], scaleShift);
+			b += size;
+			Vector3 nextA = input [b];//Diff(input [b + 1], input [b], scaleShift);
+			output[++offset] = Diff(lastA, currentA, scaleShift);
+			output [offset + newSize] = Diff(nextA, currentA, scaleShift);
 			scaleShift.x = scaleShiftStep;
 			lastRow -= size;
 			++offset;
 			for (int x = 1; x != last; ++x, offset+=2, scaleShift.x += scaleShiftStep){
-				int b = lastRow + x;
-				Vector3 lastA = Diff(input [b - 1], input [b], scaleShift);
+				b = lastRow + x;
+				lastA = Diff(input [b - 1], input [b], scaleShift);
 				Vector3 lastB = Diff(input [b + 1], input [b], scaleShift);
 				b += size;
-				Vector3 currentA = Diff(input [b - 1], input [b], scaleShift);
+				currentA = Diff(input [b - 1], input [b], scaleShift);
 				Vector3 currentB = Diff(input [b + 1], input [b], scaleShift);
 				b += size;
-				Vector3 nextA = Diff(input [b - 1], input [b], scaleShift);
+				nextA = Diff(input [b - 1], input [b], scaleShift);
 				Vector3 nextB = Diff(input [b + 1], input [b], scaleShift);
 				int nextOffset = offset + newSize;
 				output[offset] = Diff(lastA, currentA, scaleShift);
@@ -57,10 +65,20 @@ public struct NoiseLayer
 				output [offset + 1] = Diff(lastB, currentB, scaleShift);
 				output [nextOffset + 1] = Diff(nextB, currentB, scaleShift);
 			}
-			Vector3 end = input [lastRow + size + last];
+			/*Vector3 end = input [lastRow + size + last];
 			output [offset] = new Vector3 (end.x, end.y, end.z - zShift) + scaleShift;
 			offset += newSize;
-			output [offset] = new Vector3 (end.x, end.y, end.z + zShift) + scaleShift;
+			output [offset] = new Vector3 (end.x, end.y, end.z + zShift) + scaleShift;*/
+			b = lastRow + last;
+			lastA = input [b];//Diff(input [b - 1], input [b], scaleShift);
+			b += size;
+			currentA = input [b];//Diff(input [b - 1], input [b], scaleShift);
+			b += size;
+			nextA = input [b];//Diff(input [b - 1], input [b], scaleShift);
+			output[offset] = Diff(lastA, currentA, scaleShift);
+			offset += newSize;
+			output [offset] = Diff(nextA, currentA, scaleShift);
+
 		}
 		scaleShift.x = 0f;
 		output [++offset] = input [last * size] + scaleShift;

@@ -69,6 +69,16 @@ public class ProceduralTerrain : MonoBehaviour {
 		}
 	}
 
+	private void ClampToOrigin(Vector3[] vertices){
+		float minY = float.MaxValue;
+		foreach (Vector3 v in vertices){
+			if (v.y < minY){
+				minY = v.y;
+			}
+		}
+		for (int i = 0, j = vertices.Length; i != j; vertices[i++].y -= minY);
+	}
+
 	private Vector3[] GenerateVertices(){
 		float step = 1f / (size - 1f), yOffset = -0.5f;
 		int numVertices = size * size;
@@ -93,6 +103,7 @@ public class ProceduralTerrain : MonoBehaviour {
 			}
 		}
 		//PrintVertices (vertices);
+		ClampToOrigin(vertices);
 		return vertices;
 	}
 
@@ -146,7 +157,6 @@ public class ProceduralTerrain : MonoBehaviour {
 
 	private void GenerateMesh(Mesh mesh){
 		InitializeValues ();
-
 		AssignVertices(mesh, GenerateVertices ());
 	}
 
