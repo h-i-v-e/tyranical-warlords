@@ -13,7 +13,9 @@ public class ProceduralTerrain : MonoBehaviour {
 	[Range(0, 10)]
 	public float height;
 	[Range(0, 1)]
-	public float coherence;
+	public float incoherence;
+	[Range(1, 10)]
+	public float octaveIncoherenceMultiplier;
 	public float textureSize;
 
 	public int seed;
@@ -82,7 +84,7 @@ public class ProceduralTerrain : MonoBehaviour {
 	}
 
 	private Vector3[] GenerateVertices(){
-		size = NoiseLayer.ComputeStartSize (size, smoothings);
+		size = NoiseLayer.ComputeStartSize (size, smoothings + 1);
 		float step = 1f / (size - 1f), yOffset = -0.5f;
 		int numVertices = size * size;
 		Vector3[] vertices = new Vector3[numVertices];
@@ -92,10 +94,10 @@ public class ProceduralTerrain : MonoBehaviour {
 				vertices [offset] = new Vector3 (xOffset, 0f, yOffset);
 			}
 		}
-		NoiseLayer noise = new NoiseLayer (coherence);
+		NoiseLayer noise = new NoiseLayer (incoherence);
 		for (int i = 0; i != octaves; ++i){
-			noise.coherence *= i + 1;
-			noise.Apply(vertices, size, height / ((i + 1) * (i + 1)));
+			noise.coherence *= octaveIncoherenceMultiplier;
+			noise.Apply(vertices, size, height / octaveIncoherenceMultiplier);
 			for (int j = 0; j != smoothings; ++j) {
 				int nextSize = NoiseLayer.ComputeSmoothedSize (size);
 				if (nextSize > 255){
@@ -106,6 +108,7 @@ public class ProceduralTerrain : MonoBehaviour {
 			}
 		}
 		weathering.Weather (vertices, size);
+		noise.Smooth (vertices, size);
 		//PrintVertices (vertices);
 		ClampToOrigin(vertices);
 		return vertices;
@@ -154,8 +157,8 @@ public class ProceduralTerrain : MonoBehaviour {
 		mesh.vertices = vertices;
 		mesh.uv = GenerateUV (vertices);
 		mesh.triangles = GenerateTriangles ();
-		mesh.normals = GenerateNormals (vertices);
-		//mesh.RecalculateNormals();
+		//mesh.normals = GenerateNormals (vertices);
+		mesh.RecalculateNormals();
 		mesh.RecalculateBounds ();
 	}
 

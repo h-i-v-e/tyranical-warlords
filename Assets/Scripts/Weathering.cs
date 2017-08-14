@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 
+
 [System.Serializable]
 public class Weathering{
 
@@ -10,7 +11,9 @@ public class Weathering{
 	private struct Particle{
 		public float carryingCapacity;
 		public Vector3[] vertices;
-		int x, y, size, last;
+		private int size, last;
+		private Coord coord;
+
 		float velocity, carrying;
 
 		public int Size{
@@ -41,11 +44,21 @@ public class Weathering{
 			return o;
 		}
 
+		void AddDiagonal(Coord dst, float adding){
+			float lesser = adding * 0.166f;
+			vertices [dst.y * size + coord.x].y += lesser;
+			vertices [coord.y * size + dst.x].y += lesser;
+			vertices [coord.Offset(size)].y += adding * 0.667f;
+		}
+
 		bool Iterate(){
-			int myVertexOffset = y * size + x;
+			if (coord.x == coord.y){
+				return false;
+			}
+			int myVertexOffset = coord.y * size + coord.x;
 			Vector3 steepestSlope = Vector3.up, centre = vertices[myVertexOffset];
-			int lastX = GetLast(x), nextX = GetNext(x), lastY = GetLast(y), nextY = GetNext(y);
-			int ox = x, oy = y;
+			int lastX = GetLast(coord.x), nextX = GetNext(coord.x), lastY = GetLast(coord.y), nextY = GetNext(coord.y);
+			Coord next = new Coord (coord.x, coord.y);
 			for (int y = lastY; y <= nextY; ++y){
 				int yoff = y * size;
 				for (int x = lastX; x <= nextX; ++x){
@@ -61,25 +74,31 @@ public class Weathering{
 					//Debug.Log (thisVertex + " - " + centre + " = " + slope);
 					if (slope.y < steepestSlope.y){
 						steepestSlope = slope;
-						ox = x;
-						oy = y;
+						next.Set(x, y);
 					}
 				}
 			}
-			if (ox == x && oy == y) {
+			if (next.x == next.y){
+				return false;
+			}
+			if (coord == next) {
 				vertices [myVertexOffset].y += carrying;
 				return false;
 			}
-			vertices [y * size + x].y += Gouge (steepestSlope);
+			float adding = Gouge (steepestSlope);
+			if (next.x != centre.x && next.y != centre.y){
+				AddDiagonal (next, adding);
+			}
+			else{
+				vertices [myVertexOffset].y += adding;
+			}
 			//Debug.Log (x + ", " + y + " -> " + ox + ", " + oy + ", " + steepestSlope + " velocity: "+ velocity + ", carrying: " + carrying);
-			x = ox;
-			y = oy;
+			coord = next;
 			return true;
 		}
 
 		public void Track(){
-			x = Random.Range (0, size);
-			y = Random.Range (0, size);
+			coord = new Coord (Random.Range (0, size), Random.Range (0, size));
 			velocity = 0f;
 			carrying = 0f;
 			while (Iterate());
