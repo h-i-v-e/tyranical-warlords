@@ -2,20 +2,38 @@
 using System.Collections;
 using UnityEditor;
 
-[CustomEditor(typeof(ProceduralTerrain))]
+[CustomEditor (typeof(ProceduralTerrain))]
 public class ProceduralTerrainEditor : Editor
 {
-	public override void OnInspectorGUI()
+	private static readonly string[] typeOptions = new string[] {
+		"Island", "Coast"
+	};
+
+	private int index = 0;
+
+	private void Generate (ProceduralTerrain terrain)
 	{
-		DrawDefaultInspector();
+		switch (index) {
+		case 0:
+			terrain.typeFilter = new IslandFilter ();
+			break;
+		default:
+			terrain.typeFilter = new CoastFilter ();
+			break;
+		}
+		terrain.GenerateSharedMesh ();
+	}
+
+	public override void OnInspectorGUI ()
+	{
+		DrawDefaultInspector ();
 
 		ProceduralTerrain terrain = (ProceduralTerrain)target;
-		if(GUILayout.Button("Generate"))
-		{
-			terrain.GenerateSharedMesh ();
-		}
-		else if (GUILayout.Button("Randomize")){
-			terrain.seed = Random.Range(0, int.MaxValue);
+		index = EditorGUILayout.Popup ("Type", index, typeOptions);
+		if (GUILayout.Button ("Generate")) {
+			Generate (terrain);
+		} else if (GUILayout.Button ("Randomize")) {
+			terrain.seed = Random.Range (0, int.MaxValue);
 		}
 	}
 }

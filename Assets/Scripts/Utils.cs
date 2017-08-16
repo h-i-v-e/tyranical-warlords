@@ -32,4 +32,9 @@ public struct Coord{
 	public int Offset(int size){
 		return y * size + x;
 	}
+
+	public override string ToString ()
+	{
+		return "[Coord] (" + x + ", " + y + ")";
+	}
 }

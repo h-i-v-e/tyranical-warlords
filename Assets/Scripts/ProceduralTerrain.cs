@@ -4,18 +4,13 @@ using UnityEngine;
 
 public class ProceduralTerrain : MonoBehaviour {
 
-	public Weathering weathering;
+	//public WeatheringFilter weathering;
+	public ExpensiveWeatheringFilter weathering;
+	public NoiseFilter noise;
+	public IHeightMapFilter typeFilter;
 
 	[Range(4, 255)]
 	public int size;
-	[Range(1, 5)]
-	public int octaves;
-	[Range(0, 10)]
-	public float height;
-	[Range(0, 1)]
-	public float incoherence;
-	[Range(1, 10)]
-	public float octaveIncoherenceMultiplier;
 	public float textureSize;
 
 	public int seed;
@@ -52,11 +47,9 @@ public class ProceduralTerrain : MonoBehaviour {
 	}
 
 	private Vector2[] GenerateUV (Vector3[] vertices){
-		//float sizeMul = 1f / textureSize;
 		Vector2[] uv = new Vector2[size * size];
 		for (int y = 0, offset = 0; y != size; ++y) {
 			for (int x = 0; x != size; ++x, ++offset) {
-				//Vector3 vertex = vertices [offset];
 				uv [offset] = new Vector2 ((float)(x & 1), (float)(y & 1));
 			}
 		}
@@ -84,32 +77,17 @@ public class ProceduralTerrain : MonoBehaviour {
 	}
 
 	private Vector3[] GenerateVertices(){
-		size = NoiseLayer.ComputeStartSize (size, smoothings + 1);
-		float step = 1f / (size - 1f), yOffset = -0.5f;
-		int numVertices = size * size;
-		Vector3[] vertices = new Vector3[numVertices];
-		for (int y = 0, offset = 0; y != size; ++y, yOffset += step) {
-			float xOffset = -0.5f;
-			for (int x = 0; x != size; ++x, ++offset, xOffset += step) {
-				vertices [offset] = new Vector3 (xOffset, 0f, yOffset);
-			}
+		int smoothingPasses = (noise.overtones * smoothings) + 1;
+		HeightMap map = new HeightMap (SmoothFilter.ComputeStartSize (size + smoothingPasses, smoothingPasses));
+		SmoothFilter smooth = new SmoothFilter ();
+		noise.ClearOvertoneFilters ();
+		for (int i = 0; i != smoothings; ++i) {
+			noise.AddOvertoneFilter (smooth);
 		}
-		NoiseLayer noise = new NoiseLayer (incoherence);
-		for (int i = 0; i != octaves; ++i){
-			noise.coherence *= octaveIncoherenceMultiplier;
-			noise.Apply(vertices, size, height / octaveIncoherenceMultiplier);
-			for (int j = 0; j != smoothings; ++j) {
-				int nextSize = NoiseLayer.ComputeSmoothedSize (size);
-				if (nextSize > 255){
-					break;
-				}
-				vertices = noise.Smooth (vertices, size);
-				size = nextSize;
-			}
-		}
-		weathering.Weather (vertices, size);
-		noise.Smooth (vertices, size);
-		//PrintVertices (vertices);
+		map = smooth.Filter (weathering.Filter (typeFilter.Filter(noise.Filter (map))));
+		int dif = map.Size - size;
+		int offset = dif >> 1;
+		Vector3[] vertices = map.ToVertices (offset, offset, size);
 		ClampToOrigin(vertices);
 		return vertices;
 	}
@@ -121,12 +99,6 @@ public class ProceduralTerrain : MonoBehaviour {
 	private static Vector3 NormalFromVertices (Vector3 a, Vector3 b, Vector3 c, Vector3 d){
 		return Vector3.Normalize(Vector3.Cross (a - b, c - d)) * -1f;
 	}
-
-	/*private static Vector3 CalculateNormals(Vector3[] vertices, int size, int x, int y){
-		int baseY = y * size;
-		Vector3 a = NormalFromVertices (vertices[baseY + x - 1]);
-		return Vector3.Normalize ();
-	}*/
 
 	private Vector3[] GenerateNormals(Vector3[] vertices){
 		Vector3[] normals = new Vector3[size * size];
